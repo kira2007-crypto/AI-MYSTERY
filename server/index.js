@@ -16,10 +16,19 @@ const distPath = path.resolve(__dirname, '../dist');
 
 const app = express();
 const PORT = Number(process.env.PORT || 5001);
-const allowedOrigins = (process.env.CLIENT_ORIGIN || '').split(',').filter(Boolean);
+const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173').split(',').filter(Boolean);
 
 app.use(cors({
-  origin: allowedOrigins.length ? allowedOrigins : true,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || origin.includes('netlify.app') || origin.includes('localhost')) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
 app.use(express.json({ limit: '2mb' }));
