@@ -29,11 +29,21 @@ export default function App() {
   }, [caseData]);
 
   const handleGenerate = async () => {
+    const trimmedPrompt = prompt.trim();
+
+    if (!trimmedPrompt || trimmedPrompt.length < 10) {
+      alert('Please enter a longer mystery prompt before generating a case.');
+      return;
+    }
+
     setLoading(true);
     setVerdict(null);
 
     try {
-      const response = await api.post('/cases/generate', { scenarioPrompt: prompt });
+      const response = await api.post('/cases/generate', {
+        scenarioPrompt: trimmedPrompt
+      });
+
       setCaseData(response.data);
       setSelectedSuspectId(response.data.suspects[0]?.id || '');
       setSelectedEvidenceId(response.data.evidence?.cctvLogs[0]?.id || '');
@@ -49,11 +59,16 @@ export default function App() {
   const handleSolve = async () => {
     if (!caseData) return;
 
+    if (!selectedSuspectId || !selectedEvidenceId || deductionReasoning.trim().length < 10) {
+      alert('Select a suspect, evidence item, and provide a detailed deduction before submitting.');
+      return;
+    }
+
     try {
       const response = await api.post(`/cases/${caseData.caseId}/solve`, {
         selectedSuspectId,
         evidenceIdCited: selectedEvidenceId,
-        deductionReasoning
+        deductionReasoning: deductionReasoning.trim()
       });
       setVerdict(response.data);
     } catch (error) {
