@@ -2,16 +2,26 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { z } from 'zod';
 import { generateCaseFromPrompt } from './services/geminiService.js';
-import { cases, getCaseById, saveCase, sanitizeCase } from './data/store.js';
+import { getCaseById, saveCase, sanitizeCase } from './data/store.js';
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.resolve(__dirname, '../dist');
+
 const app = express();
 const PORT = Number(process.env.PORT || 5001);
+const allowedOrigins = (process.env.CLIENT_ORIGIN || '').split(',').filter(Boolean);
 
-app.use(cors());
+app.use(cors({
+  origin: allowedOrigins.length ? allowedOrigins : true,
+  credentials: true
+}));
 app.use(express.json({ limit: '2mb' }));
 
 const generateCaseSchema = z.object({
@@ -116,6 +126,22 @@ app.post('/api/cases/:id/solve', (req, res) => {
       fullExplanation: caseDoc.solution.fullExplanation
     }
   });
+});
+
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(distPath));
+}
+
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return res.sendFile(path.join(distPath, 'index.html'));
+  }
+
+  return res.status(404).json({ message: 'Route not found.' });
 });
 
 app.listen(PORT, async () => {
